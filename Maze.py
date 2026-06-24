@@ -5,8 +5,8 @@ import pygame
 
 pygame.init()
 
-WIDTH,HEIGHT = 600,600
-Maze_Size = 16
+WIDTH,HEIGHT = 1000,1000
+Maze_Size = 128*2
 
 screen = pygame.display.set_mode((WIDTH,HEIGHT))
 pygame.display.set_caption("Maze_Algorithm")
@@ -45,8 +45,8 @@ maze = create_maze(Maze_Size)
 
 start = (0,1)
 end = (maze.shape[0]-2, maze.shape[1]-2)
-visited = [start]
-queue = [start]
+visited = {start}
+queue = deque([start])
 parents = {}
 
 
@@ -54,15 +54,17 @@ rows,cols = maze.shape
 
 grid_size = maze.shape[0]
 
-Cell_Size = min(600 // grid_size, 600 // grid_size)
-offset = (600 - grid_size * Cell_Size) // 2
+Cell_Size = WIDTH / grid_size
+offset = (1000 - grid_size * Cell_Size) // 2
 found_end = False
 
 path = []
 
+visited_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+
 def algorithm():
-    curx,cury = queue.pop(0)
-    print(curx,cury)
+    curx, cury = queue.popleft()
+    
     for dx, dy in directions:
         x,y = curx,cury
         if curx+dx > 0:
@@ -72,16 +74,26 @@ def algorithm():
         
         
 
-        if maze[y][x] == 0 and not ((x,y) in visited):
+        if maze[y][x] == 0 and (x,y) not in visited:
             
             queue.append((x,y))
-            visited.append((x,y))
+            visited.add((x,y))
+            pygame.draw.rect(
+                visited_surface,
+                (207,147,147),
+                pygame.Rect(
+                    int(x * Cell_Size + offset),
+                    int(y * Cell_Size + offset),
+                    Cell_Size,
+                    Cell_Size
+                )
+            )
 
             parents[(x,y)] = (curx,cury)
         
         if (x,y) == end:
             global found_end
-            visited.append((x,y))
+            visited.add((x,y))
             current = end
             while current != start:
                 path.append(current)
@@ -90,54 +102,78 @@ def algorithm():
             path.append(start)
             path.reverse()
             found_end = True
-            print(path)
             break
             
 
-last_time = pygame.time.get_ticks()
-interval = 1
+                
+maze_surface = pygame.Surface((WIDTH, HEIGHT))
+
+maze_surface.fill((255, 255, 255))
+
+for y in range(rows):
+    for x in range(cols):
+        if maze[y][x] == 1:
+            pygame.draw.rect(
+                maze_surface,
+                (0, 0, 0),
+                pygame.Rect(
+                    int(x * Cell_Size + offset),
+                    int(y * Cell_Size + offset),
+                    Cell_Size,
+                    Cell_Size
+                )
+            )
+
+lasttick = pygame.time.get_ticks()
+interval = 0
 
 while True:
+    curtick = pygame.time.get_ticks()
+    if curtick-lasttick >= interval:
+        for _ in range(100):
+            if not found_end:
+                algorithm()
 
-    current_time = pygame.time.get_ticks()
+    screen.blit(maze_surface, (0,0))
+    screen.blit(visited_surface, (0,0))
 
-    if current_time-last_time >= interval:
-        last_time = current_time
-        bot_x = 1
-        if not found_end:
-            algorithm()
+    for x, y in path:
+        pygame.draw.rect(
+            screen,
+            (245, 230, 100),
+            pygame.Rect(
+                int(x * Cell_Size + offset),
+                int(y * Cell_Size + offset),
+                Cell_Size,
+                Cell_Size
+            )
+        )
 
-    screen.fill((255,255,255))
-    for y in range(rows):
-        for x in range(cols):
-                for p_x,p_y in path:
-                    if x == p_x and y == p_y:
-                        pygame.draw.rect(screen,(245, 230, 100),pygame.Rect(
-                        int(x * Cell_Size + offset),
-                        int(y * Cell_Size + offset),
-                        Cell_Size,
-                        Cell_Size
-                                                                      ),0) 
-                
-                for q_x,q_y in visited:
-                    if x==q_x and y==q_y and not ((x,y) in path):
-                       pygame.draw.rect(screen,(207, 147, 147),pygame.Rect(
-                        int(x * Cell_Size + offset),
-                        int(y * Cell_Size + offset),
-                        Cell_Size,
-                        Cell_Size
-                                                                      ),0) 
+    pygame.draw.rect(
+        screen,
+        (100, 255, 100),
+        pygame.Rect(
+            int(start[0] * Cell_Size + offset),
+            int(start[1] * Cell_Size + offset),
+            Cell_Size,
+            Cell_Size
+        )
+    )
 
-                if maze[y][x] == 1:
-                    pygame.draw.rect(screen,(0,0,0),pygame.Rect(
-                        int(x * Cell_Size + offset),
-                        int(y * Cell_Size + offset),
-                        Cell_Size,
-                        Cell_Size
-                                                                      ),0)
+    pygame.draw.rect(
+        screen,
+        (100, 100, 255),
+        pygame.Rect(
+            int(end[0] * Cell_Size + offset),
+            int(end[1] * Cell_Size + offset),
+            Cell_Size,
+            Cell_Size
+        )
+    )
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
-    
+            quit()
+
     pygame.display.flip()
